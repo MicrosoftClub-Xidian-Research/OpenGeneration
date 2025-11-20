@@ -1,5 +1,3 @@
-### 示例，仅供参考，selen也没有验证过 ... ###
-
 import torch
 import matplotlib.pyplot as plt
 from torch.nn.functional import one_hot
@@ -47,7 +45,7 @@ def generate_images(digit, num_images=10):
 
 if __name__ == '__main__':
     # --- 生成并可视化 ---
-    digit_to_generate = 7  # 你可以改成任何 0-9 的数字
+    digit_to_generate = 3  # 你可以改成任何 0-9 的数字
     num_samples = 10       # 生成 10 张图片
 
     print(f"Generating {num_samples} images for the digit '{digit_to_generate}'...")

@@ -1,5 +1,3 @@
-### 示例，仅供参考，selen也没有验证过 ··· ###
-
 import torch
 from torch import optim
 from torchvision import datasets, transforms
@@ -40,6 +38,13 @@ model = ConditionalVAE(
     num_classes=NUM_CLASSES
 ).to(DEVICE)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+if os.path.exists(MODEL_SAVE_PATH):
+    print('Train from the existing one!')
+    state_dict = torch.load(MODEL_SAVE_PATH,map_location=DEVICE)
+    model.load_state_dict(state_dict)
+else:
+    print("Train from scratch!")
 
 # --- 3. 训练循环 ---
 print("Start training CVAE...")
