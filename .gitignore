@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Model checkpoints
+cvae_mnist.pth
+*.pth
+*.pt
+
+# Virtual Env
+venv/
+.venv/
+.env/
+
+# IDE/Editor
+.vscode/
+.idea/

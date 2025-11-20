@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 class ConditionalVAE(nn.Module):
     """
@@ -52,8 +53,28 @@ class ConditionalVAE(nn.Module):
         return self.decoder(inputs)
 
     def forward(self, x, y):
-        """前向传播"""
-        ### define your forward function here
+        """
+        前向传播
+        x:[B,1,28,28] or [B,784]
+        y:[B,num_classes] one-hot label
+        return:
+            - recon_x:reconstructed image
+            - mu:latent sapce's mean [B, latent_dim]
+            - logvar: latent space's logvar [B, latent_dim]
+        """
+        batch_size = x.size(0)
+        if x.dim() == 4:
+            x_flat = x.view(batch_size,-1)
+        else:
+            x_flat = x
+        
+        mu, logvar = self.encode(x_flat,y)
+        z = self.reparameterize(mu=mu,logvar=logvar)
+        recon_batch = self.decode(z,y)
+        recon_batch = recon_batch.view(batch_size,1,28,28)
+
+        return recon_batch, mu, logvar
+
 
 def loss_function(recon_x, x, mu, logvar):
     """
@@ -62,4 +83,17 @@ def loss_function(recon_x, x, mu, logvar):
     - x: 原始图像
     - mu, logvar: 潜在空间的分布参数
     """
-    ### define your loss function here
+    batch_size = x.size(0)
+    if recon_x.dim() == 4:
+        recon_x_flat = recon_x.view(batch_size,-1)
+    else:
+        recon_x_flat = recon_x
+    if x.dim() == 4:
+        x_flat = x.view(batch_size,-1)
+    else:
+        x_flat = x
+
+    bce = F.binary_cross_entropy(recon_x_flat,x_flat,reduction='sum')
+    kld = -0.5*torch.sum(1+logvar-mu.pow(2)-logvar.exp())
+    loss = (bce + kld) / batch_size
+    return loss
