@@ -1,63 +1,40 @@
-### 示例，仅供参考，selen也没有验证过 ... ###
-
 import torch
 import matplotlib.pyplot as plt
-from torch.nn.functional import one_hot
+from models.cvae import CVAE
+import sys
+import os
 
-# 导入我们定义的模型
-from models.cvae import ConditionalVAE
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# --- 配置 ---
-DEVICE = "cpu"  # 生成任务通常不需要 GPU
-LATENT_DIM = 20
-NUM_CLASSES = 10
-MODEL_PATH = "cvae_mnist.pth"
+# 加载模型
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("正在加载模型...")
+model = CVAE().to(device)
+model.load_state_dict(torch.load('cvae_mnist.pth', map_location=device))
+model.eval()
+print("模型加载完成！")
 
-# --- 加载模型 ---
-print(f"Loading model from {MODEL_PATH}...")
-model = ConditionalVAE(latent_dim=LATENT_DIM, num_classes=NUM_CLASSES).to(DEVICE)
-try:
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-except FileNotFoundError:
-    print(f"Error: Model file not found at '{MODEL_PATH}'.")
-    print("Please run 'python scripts/train_cvae.py' first to train and save the model.")
-    exit()
-
-model.eval() # 设置为评估模式
-
-def generate_images(digit, num_images=10):
-    """
-    为指定的数字生成图像。
-    - digit: 要生成的数字 (0-9)
-    - num_images: 要生成的图像数量
-    """
+# 生成数字
+def generate_digit(digit):
     with torch.no_grad():
-        # 1. 随机从标准正态分布中采样潜在向量 z
-        z = torch.randn(num_images, LATENT_DIM).to(DEVICE)
-        
-        # 2. 创建条件的 one-hot 编码
-        label_tensor = torch.tensor([digit] * num_images).to(DEVICE)
-        label_onehot = one_hot(label_tensor, num_classes=NUM_CLASSES).float()
-        
-        # 3. 解码器从 (z, label) 生成图像
-        generated_images = model.decode(z, label_onehot)
-        
-        # 将图像尺寸变回 28x28
-        return generated_images.view(num_images, 28, 28)
+        z = torch.randn(1, 20).to(device)
+        c = torch.tensor([digit], dtype=torch.long).to(device)
+        generated = model.decode(z, c)
+        return generated.cpu().numpy()
 
-if __name__ == '__main__':
-    # --- 生成并可视化 ---
-    digit_to_generate = 7  # 你可以改成任何 0-9 的数字
-    num_samples = 10       # 生成 10 张图片
+# 生成0-9的数字
+print("正在生成数字图片...")
+fig, axes = plt.subplots(2, 5, figsize=(10, 4))
+for i in range(10):
+    row = i // 5
+    col = i % 5
+    digit_img = generate_digit(i).reshape(28, 28)
+    axes[row, col].imshow(digit_img, cmap='gray')
+    axes[row, col].set_title(f'Digit: {i}')
+    axes[row, col].axis('off')
 
-    print(f"Generating {num_samples} images for the digit '{digit_to_generate}'...")
-    images = generate_images(digit_to_generate, num_images=num_samples)
-
-    # 使用 Matplotlib 展示结果
-    fig, axes = plt.subplots(1, num_samples, figsize=(15, 2))
-    for i, ax in enumerate(axes):
-        ax.imshow(images[i].cpu().numpy(), cmap='gray')
-        ax.axis('off')
-    
-    plt.suptitle(f'Generated Images for Digit: {digit_to_generate}', fontsize=16)
-    plt.show()
+plt.tight_layout()
+plt.savefig('generated_digits.png')
+print("生成完成！图片已保存为 generated_digits.png")
+plt.show()
