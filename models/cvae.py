@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F  # 建议加上这行，方便调用损失函数
 
 class ConditionalVAE(nn.Module):
     """
@@ -53,13 +54,31 @@ class ConditionalVAE(nn.Module):
 
     def forward(self, x, y):
         """前向传播"""
-        ### define your forward function here
+        # ⚠️ 新增：把 4维图片 [64, 1, 28, 28] 拍扁成 2维 [64, 784]
+        x = x.view(x.size(0), -1)
+        
+        # 1. 编码
+        mu, logvar = self.encode(x, y)
+        
+        # 2. 重参数化
+        z = self.reparameterize(mu, logvar)
+        
+        # 3. 解码
+        recon_x = self.decode(z, y)
+        
+        return recon_x, mu, logvar
 
 def loss_function(recon_x, x, mu, logvar):
     """
-    计算损失函数 = 重构损失 + KL 散度
-    - recon_x: 重构后的图像
-    - x: 原始图像
-    - mu, logvar: 潜在空间的分布参数
+    计算损失函数
     """
-    ### define your loss function here
+    # ⚠️ 新增：计算 Loss 前，也要把原始图片 x 拍扁，以匹配 recon_x 的形状
+    x = x.view(x.size(0), -1)
+
+    # 1. 重构损失
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
+
+    # 2. KL 散度
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+    return BCE + KLD
